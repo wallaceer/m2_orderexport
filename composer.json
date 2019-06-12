@@ -1,0 +1,31 @@
+{
+  "name": "wl/orderexport",
+  "description": "N/A",
+  "require": {
+    "php": ">=5.5"
+  },
+  "type": "magento2-module",
+  "version": "1.0.0",
+  "repositories": {
+    "0": {
+      "type": "composer",
+      "url": "https://github.com/wallaceer/orderexport.git"
+    }
+  },
+  "license": [
+    "OSL-3.0",
+    "AFL-3.0"
+  ],
+  "authors": [{
+    "name": "",
+    "role": ""
+  }],
+  "autoload": {
+    "files": [
+      "registration.php"
+    ],
+    "psr-4": {
+      "Wl\\OrderExport\\": ""
+    }
+  }
+}
