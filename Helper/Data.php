@@ -1,6 +1,6 @@
 <?php
 
-namespace Wl\OrderExport\Helper;
+namespace Reply\OrderExport\Helper;
 
 
 class Data{
@@ -9,6 +9,7 @@ class Data{
     protected $_orderFactory;
     protected $orderCollectionFactory;
     protected $_order;
+
 
 
     public function __construct(
@@ -31,6 +32,10 @@ class Data{
                 )->addFieldToFilter(
                     'status',
                     ['in' => 'payment_review']
+                )->addFieldToFilter(
+                    'created_at', ['gteq' => date("Y-m-d 00:00:00")]
+                )->addFieldToFilter(
+                    'created_at', ['lteq' => date("Y-m-d 23:59:59")]
                 ); // obtain all orders
 
             $ordersList = $orderCollection->getData();
@@ -40,8 +45,8 @@ class Data{
                 //Order Items
                 $order = $this->_order->load($orderData['entity_id']);
                 $orderItems = $order->getAllItems();
-                $shippingAdress['shipping_data'] = $order->getShippingAddress()->getData();
-                $billingAddress['billing_data'] = $order->getBillingAddress()->getData();
+                $billingAddress['billing_data'] = $order->getBillingAddress() ? $order->getBillingAddress()->getData() : '';
+                $shippingAdress['shipping_data'] = $order->getShippingAddress() ? $order->getShippingAddress()->getData() : $order->getBillingAddress()->getData();
 
                 $orderData = array_merge($orderData, $shippingAdress);
                 $orderData = array_merge($orderData, $billingAddress);
@@ -108,7 +113,8 @@ class Data{
                         'price' =>$item['price'],
                         'row_total' =>$item['row_total'],
                         'created_at' => $orderData['created_at'],
-                        'updated_at' => $orderData['updated_at']
+                        'updated_at' => $orderData['updated_at'],
+                        'configurationId' => $this->parseInfoBuyRequest($item['product_options'])
                     ];
 
                 }
@@ -123,5 +129,43 @@ class Data{
     }
 
 
+    public function getSelectedConfigurableOption($child_id){
+
+        $sql = "select catalog_product_entity.sku as SKU,catalog_product_entity_varchar.value as Description,
+                concat('FR-',LPAD(catalog_product_super_attribute_label.value,10,'0')) as FeatureCode,
+                eav_attribute_label.value as QuestionDescription,
+                tb3.acode as AnswerCode,tb3.adesc as AnswerDescription
+                from catalog_product_super_attribute
+                inner join catalog_product_super_attribute_label
+                    on catalog_product_super_attribute_label.product_super_attribute_id=catalog_product_super_attribute.product_super_attribute_id
+                inner join eav_attribute_label on eav_attribute_label.attribute_id=catalog_product_super_attribute.attribute_id
+                inner join catalog_product_entity on catalog_product_super_attribute.product_id=catalog_product_entity.entity_id
+                inner join (select * from catalog_product_entity_int
+                inner join (select eav_attribute_option_value.option_id,lpad(eav_attribute_option_value.value,10,'0') as acode,
+                            tb1.value as adesc
+                            from eav_attribute_option_value
+                            inner join (select eav_attribute_option_value.option_id,eav_attribute_option_value.value
+                                        from eav_attribute_option_value where eav_attribute_option_value.store_id=1) as tb1
+                                        on tb1.option_id=eav_attribute_option_value.option_id
+                                        where eav_attribute_option_value.store_id=0) as tb2
+                            on catalog_product_entity_int.value=tb2.option_id
+                            where catalog_product_entity_int.entity_id=$child_id) as tb3
+                        on tb3.attribute_id=catalog_product_super_attribute.attribute_id
+                inner join catalog_product_entity_varchar on catalog_product_entity_varchar.entity_id=catalog_product_super_attribute.product_id and
+                            catalog_product_entity_varchar.attribute_id=73
+                where catalog_product_super_attribute.product_id=(select parent_id from catalog_product_relation where child_id=$child_id);
+                ";
+
+        $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
+        $resource  = $objectManager->get('Magento\Framework\App\ResourceConnection');
+        $connection = $resource->getConnection();
+        return $result = $connection->fetchAll($sql);
+
+    }
+
+
+    public function parseInfoBuyRequest($infodata){
+        return $selectedConfigurableOption = isset($infodata['info_buyRequest']['selected_configurable_option']) ? $infodata['info_buyRequest']['selected_configurable_option'] : '';
+    }
 
 }

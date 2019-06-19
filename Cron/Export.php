@@ -1,10 +1,10 @@
 <?php
 
-namespace Wl\OrderExport\Cron;
+namespace Reply\OrderExport\Cron;
 
 
-use \Wl\OrderExport\Helper\Csv;
-use \Wl\OrderExport\Helper\Data;
+use \Reply\OrderExport\Helper\Csv;
+use \Reply\OrderExport\Helper\Data;
 
 
 class Export{
@@ -39,7 +39,18 @@ class Export{
 
         $data = $this->_data->getData();
 
+        //Create order's csv
         $this->_csv->toCsv($data);
+        //Create product's configuration file
+        foreach($data as $d){
+            foreach($d as $value){
+                if(isset($value['configurationId']) && $value['configurationId']!=''){
+                    $confData = $this->_data->getSelectedConfigurableOption($value['configurationId']);
+                    $this->_csv->toCsvConfiguration($confData, $value['order_id'], $value['configurationId']);
+                }
+            }
+        }
+
 
         $this->logger->info('End orderExport cronjob');
 
