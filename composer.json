@@ -6,19 +6,13 @@
   },
   "type": "magento2-module",
   "version": "1.0.0",
-  "repositories": {
-    "0": {
-      "type": "composer",
-      "url": "https://github.com/wallaceer/orderexport.git"
-    }
-  },
   "license": [
     "OSL-3.0",
     "AFL-3.0"
   ],
   "authors": [{
-    "name": "",
-    "role": ""
+    "name": "wallaceer",
+    "role": "developer"
   }],
   "autoload": {
     "files": [
