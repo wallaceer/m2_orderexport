@@ -1,0 +1,19 @@
+{
+  "name": "orderexport",
+  "version": "1.0.0",
+  "description": "Magento 2 orders export in csv file",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wallaceer/orderexport.git"
+  },
+  "author": "wallaceer",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/wallaceer/orderexport/issues"
+  },
+  "homepage": "https://github.com/wallaceer/orderexport#readme"
+}
