@@ -166,9 +166,9 @@ class manualExport extends Command
                 //Order Items
                 $order = $this->order->load($orderData['entity_id']);
                 $orderItems = $order->getAllItems();
-                $shippingAdress['shipping_data'] = $order->getShippingAddress()->getData();
+                $shippingAdress['shipping_data'] = $order->getShippingAddress();
                 //print_r($shippingAdress);//exit;
-                $billingAddress['billing_data'] = $order->getBillingAddress()->getData();
+                $billingAddress['billing_data'] = $order->getBillingAddress();
                 //print_r($billingAddress);
 
                 $orderData = array_merge($orderData, $shippingAdress);
