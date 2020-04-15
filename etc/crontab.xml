@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Cron:etc/crontab.xsd">
     <group id="default">
-        <job name="wl_orderexport_cronjob" instance="Wl\OrderExport\Cron\Export" method="execute">
+        <job name="ws_orderexport_cronjob" instance="Ws\OrderExport\Cron\Export" method="execute">
             <schedule>*/20 * * * *</schedule>
         </job>
     </group>

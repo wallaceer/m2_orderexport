@@ -1,8 +1,8 @@
 {
-  "name": "wl/orderexport",
+  "name": "ws/orderexport",
   "description": "N/A",
   "require": {
-    "php": ">=5.5"
+    "php": ">=7"
   },
   "type": "magento2-module",
   "version": "1.0.0",
@@ -10,16 +10,19 @@
     "OSL-3.0",
     "AFL-3.0"
   ],
-  "authors": [{
-    "name": "wallaceer",
-    "role": "developer"
-  }],
+  "authors": [
+    {
+      "name": "Walter Santi",
+      "email": "santi.walter@gmail.com",
+      "homepage": "https://blog.waltersanti.info"
+    }
+  ],
   "autoload": {
     "files": [
       "registration.php"
     ],
     "psr-4": {
-      "Wl\\OrderExport\\": ""
+      "Ws\\OrderExport\\": ""
     }
   }
 }

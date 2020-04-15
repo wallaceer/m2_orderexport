@@ -1,10 +1,10 @@
 <?php
 
-namespace Reply\OrderExport\Cron;
+namespace Ws\OrderExport\Cron;
 
 
-use \Reply\OrderExport\Helper\Csv;
-use \Reply\OrderExport\Helper\Data;
+use \Ws\OrderExport\Helper\Csv;
+use \Ws\OrderExport\Helper\Data;
 
 
 class Export{

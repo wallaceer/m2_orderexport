@@ -1,6 +1,6 @@
 <?php
 
-namespace Wl\OrderExport\Console\Command;
+namespace Ws\OrderExport\Console\Command;
 
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;

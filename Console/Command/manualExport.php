@@ -1,6 +1,6 @@
 <?php
 
-namespace Wl\OrderExport\Console\Command;
+namespace Ws\OrderExport\Console\Command;
 
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -36,15 +36,6 @@ class manualExport extends Command
      * @var \Magento\Store\Model\StoreManagerInterface
      */
     protected $storeManager;
-    /**
-     * @var \Magento\Framework\Escaper
-     */
-    protected $_escaper;
-
-    private $_toEmail;
-    private $_nameFrom = "Poltrona Frau web store";
-
-    private $_mailFrom;
 
     private $state;
 
@@ -60,6 +51,10 @@ class manualExport extends Command
     protected $csvProcessor;
     protected $directoryList;
     protected $resultRawFactory;
+
+    const STATO = 'stato';
+    const START = 'start';
+    const END = 'end';
 
     /**
      * @param  \Psr\Log\LoggerInterface $logger,
@@ -103,15 +98,16 @@ class manualExport extends Command
 
     protected function configure()
     {
-        $commandoptions = [
-            //new InputOption(self::EXTYPE, null, InputOption::VALUE_REQUIRED, 'type'),
-            //new InputOption(self::EXSTART, null, InputOption::VALUE_OPTIONAL, 'start'),
-            //new InputOption(self::EXEND, null, InputOption::VALUE_OPTIONAL, 'end')
-        ];
 
         $this->setName('orderexport:export');
         $this->setDescription('test export orders');
-        $this->setDefinition($commandoptions);
+        $this->addOption(
+            self::STATO,
+            null,
+            InputOption::VALUE_REQUIRED,
+            'Stato ordine'
+        );
+
     }
 
     /**
@@ -121,11 +117,15 @@ class manualExport extends Command
      */
     public function execute(InputInterface $input, OutputInterface $output)
     {
-        $output->writeln('*** START test order export Cron ' . date('Y-m-d H:i:s'));
+        $output->writeln('*** START order export ' . date('Y-m-d H:i:s'));
 
         $this->logger->info('Start order export cronjob');
 
         try {
+
+            if ($stato = $input->getOption(self::STATO)) {
+                $output->writeln('<info>Provided order status is `' . $stato . '`</info>');
+            }
 
             $finalOrderData = $finalOrderData2 = [];
 
@@ -135,7 +135,7 @@ class manualExport extends Command
                 '*'
                 )->addFieldToFilter(
                     'status',
-                    ['in' => 'payment_review']
+                    ['in' => $stato]
                 ); // obtain all orders
 
             $ordersList = $orderCollection->getData();

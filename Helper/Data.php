@@ -1,6 +1,6 @@
 <?php
 
-namespace Reply\OrderExport\Helper;
+namespace Ws\OrderExport\Helper;
 
 
 class Data{
