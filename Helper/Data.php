@@ -87,4 +87,21 @@ class Data{
         return $selectedConfigurableOption = isset($infodata['info_buyRequest']['selected_configurable_option']) ? $infodata['info_buyRequest']['selected_configurable_option'] : '';
     }
 
+    public function getConfig($scope)
+    {
+        try {
+            switch($scope){
+                case 'store':
+                    return $this->scopeConfig->getValue('config/to/path', ScopeInterface::SCOPE_STORE);        // From store view
+                case 'website':
+                    return $this->scopeConfig->getValue('config/to/path', ScopeInterface::SCOPE_WEBSITE);    // From Website
+                default:
+                    return $this->scopeConfig->getValue('config/to/path', ScopeInterface::SCOPE_STORE);
+            }
+
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
 }

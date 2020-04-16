@@ -145,6 +145,10 @@ class manualExport extends Command
      */
     public function execute(InputInterface $input, OutputInterface $output)
     {
+        /**
+         * Boolean var for empty result
+         */
+        $res = 0;
 
         $tipo = 'l';
         if ($tipo = $input->getArgument('tipo')) {
@@ -206,7 +210,7 @@ class manualExport extends Command
 
         try {
 
-            $finalOrderData = $finalOrderDataForOneCsv = [];
+            $finalOrderDataForOneCsv = [];
 
             /**
              * Get collection
@@ -225,8 +229,6 @@ class manualExport extends Command
                 $orderData = array_merge($orderData, $billingAddress);
 
                 foreach ($orderItems as $item) {
-                    $finalOrderData[] = array_merge($orderData, $item->getData());
-
                     /**
                      * Data for single csv for every order
                      */
@@ -363,13 +365,22 @@ class manualExport extends Command
             /**
              * One Csv for every order
              */
-            if($tipo === 'd') $this->_csv->toCsv($finalOrderDataForSingleCsvPerOrder);
+            if($tipo === 'd' && isset($finalOrderDataForSingleCsvPerOrder)){
+                $this->_csv->toCsv($finalOrderDataForSingleCsvPerOrder);
+                $res = 1;
+            }
 
             /**
              * One Csv for all orders
              */
-            $this->_csv->toCsvSingleFile($finalOrderDataForOneCsv);
+            if(isset($finalOrderDataForOneCsv) && count($finalOrderDataForOneCsv)>0){
+                $this->_csv->toCsvSingleFile($finalOrderDataForOneCsv);
+                $res = 1;
+            }
 
+            if($res == 0){
+                $output->writeln('<info>No orders to export</info>');
+            }
             $output->writeln('<info>*** END manual Order Export ' . date('Y-m-d H:i:s').'</info>');
 
         } catch (\Exception $e) {
