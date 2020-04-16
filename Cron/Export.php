@@ -37,7 +37,7 @@ class Export{
 
         $this->logger->info('Start orderExport cronjob');
 
-        $data = $this->_data->getData();
+        $data = $this->_data->getOrdersCollection();
 
         //Create order's csv
         $this->_csv->toCsv($data);

@@ -5,10 +5,12 @@ namespace Ws\OrderExport\Console\Command;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
 use Magento\Sales\Model\Order;
 use \Magento\Framework\App\State;
+use \Ws\OrderExport\Helper\Csv;
+use \Ws\OrderExport\Helper\Data;
 
 class manualExport extends Command
 {
@@ -21,7 +23,6 @@ class manualExport extends Command
      * @var \Psr\Log\LoggerInterface;
      */
     protected $logger;
-
 
     /**
      * @var \Magento\Framework\Translate\Inline\StateInterface
@@ -43,20 +44,22 @@ class manualExport extends Command
     protected $_dir;
 
     private $_order;
-    protected $orderCollectionFactory;
     protected $customer;
     protected $_customerRepositoryInterface;
 
     /* CSV */
     protected $fileFactory;
-    protected $csvProcessor;
-    protected $directoryList;
     protected $resultRawFactory;
 
-    const STATO = 'stato';
-    const START = 'start';
-    const END = 'end';
-    const TIPO = 'tipo';
+    /**
+     * @var Csv
+     */
+    protected $_csv;
+
+    protected $_data;
+
+    const REGEX_DATETIME = '(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})';
+    const REGEX_DATE = '(\d{4})-(\d{2})-(\d{2})';
 
     /**
      * @param  \Psr\Log\LoggerInterface $logger,
@@ -70,30 +73,28 @@ class manualExport extends Command
         \Psr\Log\LoggerInterface $logger,
         \Magento\Framework\App\Config\ScopeConfigInterface $scopeConfig,
         \Magento\Framework\App\State $state,
-        \Magento\Framework\Filesystem\DirectoryList $dir,
         \Magento\Customer\Api\CustomerRepositoryInterface $customerRepositoryInterface,
         \Magento\Framework\App\Response\Http\FileFactory $fileFactory,
-        \Magento\Framework\File\Csv $csvProcessor,
-        \Magento\Framework\App\Filesystem\DirectoryList $directoryList,
-        \Magento\Framework\Controller\Result\RawFactory $resultRawFactory
+        \Magento\Framework\Controller\Result\RawFactory $resultRawFactory,
+        Csv $csv,
+        Data $data
     )
     {
         $state->setAreaCode(\Magento\Framework\App\Area::AREA_ADMINHTML);
         $this->logger = $logger;
         $this->scopeConfig = $scopeConfig;
         $this->state = $state;
-        $this->_dir = $dir;
         $this->_customerRepositoryInterface = $customerRepositoryInterface;
 
         $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
         $this->order = $objectManager->create('\Magento\Sales\Model\Order');
         $this->registry = $objectManager->create('\Magento\Framework\Registry');
-        $this->orderCollectionFactory = $objectManager->create('\Magento\Sales\Model\ResourceModel\Order\CollectionFactory');
 
         $this->fileFactory = $fileFactory;
-        $this->csvProcessor = $csvProcessor;
-        $this->directoryList = $directoryList;
         $this->resultRawFactory = $resultRawFactory;
+
+        $this->_csv = $csv;
+        $this->_data = $data;
 
         parent::__construct();
     }
@@ -101,22 +102,36 @@ class manualExport extends Command
     protected function configure()
     {
 
-        $this->setName('orderexport:export');
-        $this->setDescription('export orders');
+        $this->setName('order:export');
+        $this->setDescription('export sales orders');
 
         $this->addArgument(
-            self::TIPO,
+            __('tipo'),
             InputArgument::OPTIONAL,
             __('Tipo di export (d=detailed/l=list) (default l)'),
             'l'
 
         );
         $this->addArgument(
-            self::STATO,
+            __('stato'),
             InputArgument::OPTIONAL,
             __('Stato ordine (%1) (default all)', implode("/", $this->getOrderStatus())),
-            'all'
+            'processing'
 
+        );
+
+        $this->addArgument(
+            __('start'),
+            InputArgument::OPTIONAL,
+            __('Data registrazione ordine, inizio intervallo (default %1)', date("Y-m-d")),
+            date("Y-m-d")
+        );
+
+        $this->addArgument(
+            __('end'),
+            InputArgument::OPTIONAL,
+            __('Data registrazione ordine, fine intervallo (default %1)', date("Y-m-d")),
+            date("Y-m-d")
         );
 
         parent::configure();
@@ -131,7 +146,8 @@ class manualExport extends Command
     public function execute(InputInterface $input, OutputInterface $output)
     {
 
-        if ($tipo = $input->getArgument(self::TIPO)) {
+        $tipo = 'l';
+        if ($tipo = $input->getArgument('tipo')) {
             if($tipo === 'l' || $tipo === 'd'){
                 $output->writeln('<info>Provided export type is `' . $tipo . '`</info>');
             }
@@ -139,9 +155,12 @@ class manualExport extends Command
                 $tipo = 'l';
                 $output->writeln('<info>Your digit for export type is incorrect, so provided export type is `' . $tipo . '`</info>');
             }
+        }else{
+            $output->writeln('<info>Provided export type is `' . $tipo . '`</info>');
         }
 
-        if ($stato = $input->getArgument(self::STATO)) {
+        $stato = 'processing';
+        if ($stato = $input->getArgument('stato')) {
             if(in_array($stato, $this->getOrderStatus())){
                 $output->writeln('<info>Provided order status is `' . $stato . '`</info>');
             }
@@ -149,28 +168,50 @@ class manualExport extends Command
                 $stato = 'all';
                 $output->writeln('<info>Your digit for order status is incorrect, so provided order status is `' . $stato . '`</info>');
             }
+        }else{
+            $output->writeln('<info>Provided order status is `' . $stato . '`</info>');
         }
 
-        $output->writeln('*** START order export ' . date('Y-m-d H:i:s'));
+        $start = date("Y-m-d 00:00:01");
+        if ($start = $input->getArgument('start')) {
+            if(preg_match("/".self::REGEX_DATE."/", $start)){
+                $start .= ' 00:00:01';
+                $output->writeln('<info>Provided export data start is `' . $start . '`</info>');
+            }
+            else{
+                $start = date("Y-m-d 00:00:01");
+                $output->writeln('<info>Your digit for export data start is incorrect, so provided export data start is `' . $start . '`</info>');
+            }
+        }else{
+            $output->writeln('<info>Provided export data start is `' . $start . '`</info>');
+        }
 
-        $this->logger->info('Start order export cronjob');
+        $end = date("Y-m-d 23:59:59");
+        if ($end = $input->getArgument('end')) {
+            if(preg_match("/".self::REGEX_DATE."/", $end)){
+                $end .= ' 23:59:59';
+                $output->writeln('<info>Provided export data end is `' . $end . '`</info>');
+            }
+            else{
+                $end = date("Y-m-d 23:59:59");
+                $output->writeln('<info>Your digit for export data end is incorrect, so provided export data end is `' . $end . '`</info>');
+            }
+        }else{
+            $output->writeln('<info>Provided export data end is `' . $end . '`</info>');
+        }
+
+        $output->writeln('<info>*** START order export ' . date('Y-m-d H:i:s').'</info>');
+
+        $this->logger->info('Start manual order export');
 
         try {
 
+            $finalOrderData = $finalOrderDataForOneCsv = [];
 
-
-            $finalOrderData = $finalOrderData2 = [];
-
-            //Ipotiziamo di leggere soltanto i nuovi ordini
-            $orderCollection = $this->orderCollectionFactory->create()
-                ->addFieldToSelect(
-                '*'
-                )->addFieldToFilter(
-                    'status',
-                    ['in' => $stato]
-                ); // obtain all orders
-
-            $ordersList = $orderCollection->getData();
+            /**
+             * Get collection
+             */
+            $ordersList = $this->_data->getOrdersCollection($stato, $start, $end);
 
             foreach($ordersList as $orderData){
 
@@ -183,9 +224,12 @@ class manualExport extends Command
                 $orderData = array_merge($orderData, $shippingAdress);
                 $orderData = array_merge($orderData, $billingAddress);
 
-                //Righe ordine
                 foreach ($orderItems as $item) {
                     $finalOrderData[] = array_merge($orderData, $item->getData());
+
+                    /**
+                     * Data for single csv for every order
+                     */
                     $finalOrderDataForSingleCsvPerOrder[$item['order_id']][] = [
                         'item_id' =>$item['item_id'],
                         'order_id' =>$item['order_id'],
@@ -248,6 +292,9 @@ class manualExport extends Command
                         'updated_at' => $orderData['updated_at']
                     ];
 
+                    /**
+                     * Data for one file for all orders
+                     */
                     $finalOrderDataForOneCsv[] = [
                         'item_id' =>$item['item_id'],
                         'order_id' =>$item['order_id'],
@@ -316,14 +363,14 @@ class manualExport extends Command
             /**
              * One Csv for every order
              */
-            if($tipo === 'd') $this->toCsv($finalOrderDataForSingleCsvPerOrder);
+            if($tipo === 'd') $this->_csv->toCsv($finalOrderDataForSingleCsvPerOrder);
 
             /**
              * One Csv for all orders
              */
-            $this->toCsvSingleFile($finalOrderDataForOneCsv);
+            $this->_csv->toCsvSingleFile($finalOrderDataForOneCsv);
 
-            $output->writeln('*** END test Order Export Cron ' . date('Y-m-d H:i:s'));
+            $output->writeln('<info>*** END manual Order Export ' . date('Y-m-d H:i:s').'</info>');
 
         } catch (\Exception $e) {
             $output->writeln('*** Error ' . $e->getMessage());
@@ -348,31 +395,31 @@ class manualExport extends Command
      * @return \Magento\Framework\App\ResponseInterface
      * @throws \Magento\Framework\Exception\FileSystemException
      */
-    protected function toCsv($data){
-
-        //Data's array for csv
-        $newData = [];
-
-        $header = [];
-        foreach($data as $orderId=>$orderData){
-            foreach($orderData as $k=>$v){
-                foreach($v as $i=>$vv){
-                    $header[] = $i;
-                }
-                break;
-            }
-            break;
-        }
-
-        $newData[] = $header;
-
-        //one file for each order
-        foreach($data as $orderId=>$orderData){
-            array_unshift($orderData, $header);
-            $fileName = 'exportOrder_'.$orderId.'_'.date("YmdHis").'.csv';
-            $this->createCsvFile($fileName, $orderData);
-        }
-    }
+//    protected function toCsv($data){
+//
+//        //Data's array for csv
+//        $newData = [];
+//
+//        $header = [];
+//        foreach($data as $orderId=>$orderData){
+//            foreach($orderData as $k=>$v){
+//                foreach($v as $i=>$vv){
+//                    $header[] = $i;
+//                }
+//                break;
+//            }
+//            break;
+//        }
+//
+//        $newData[] = $header;
+//
+//        //one file for each order
+//        foreach($data as $orderId=>$orderData){
+//            array_unshift($orderData, $header);
+//            $fileName = 'exportOrder_'.$orderId.'_'.date("YmdHis").'.csv';
+//            $this->createCsvFile($fileName, $orderData);
+//        }
+//    }
 
     /**
      * Create csv file
@@ -380,63 +427,63 @@ class manualExport extends Command
      * @return \Magento\Framework\App\ResponseInterface
      * @throws \Magento\Framework\Exception\FileSystemException
      */
-    protected function toCsvSingleFile($data){
+//    protected function toCsvSingleFile($data){
+//
+//        //Data's array for csv
+//        $newData = [];
+//
+//        //Temporary array
+//        $aRighe = [];
+//
+//        foreach($data as $index=>$values){
+//            //Temporary array
+//            $nRighe = $aTesta = [];
+//            foreach($values as $testa=>$righe){
+//                $aTesta[] = $testa;
+//                $nRighe[] = $righe;
+//            }
+//            $aRighe[] = $nRighe;
+//        }
+//
+//        //Set csv header
+//        $newData = [$aTesta];
+//        //Set csv rows data
+//        foreach($aRighe as $riga){
+//            array_push($newData, $riga);
+//        }
+//
+//        //print_r($newData);
+//        $fileName = 'orders_list.csv';
+//        $this->createCsvFile($fileName, $newData);
+//
+//
+//    }
 
-        //Data's array for csv
-        $newData = [];
-
-        //Temporary array
-        $aRighe = [];
-
-        foreach($data as $index=>$values){
-            //Temporary array
-            $nRighe = $aTesta = [];
-            foreach($values as $testa=>$righe){
-                $aTesta[] = $testa;
-                $nRighe[] = $righe;
-            }
-            $aRighe[] = $nRighe;
-        }
-
-        //Set csv header
-        $newData = [$aTesta];
-        //Set csv rows data
-        foreach($aRighe as $riga){
-            array_push($newData, $riga);
-        }
-
-        //print_r($newData);
-        $fileName = 'orders_list.csv';
-        $this->createCsvFile($fileName, $newData);
-
-
-    }
-
-    protected function createCsvFile($filename, $data){
-
-        $filePath = $this->directoryList->getPath(\Magento\Framework\App\Filesystem\DirectoryList::VAR_DIR)
-            . "/" . $filename;
-
-        $this->csvProcessor
-            ->setDelimiter(',')
-            ->setEnclosure('"')
-            ->saveData(
-                $filePath,
-                $data
-            );
-
-        return $this->fileFactory->create(
-            $filename,
-            [
-                'type' => "filename",
-                'value' => $filename,
-                'rm' => false,
-            ],
-            \Magento\Framework\App\Filesystem\DirectoryList::VAR_DIR,
-            'text/csv',
-            null
-        );
-    }
+//    protected function createCsvFile($filename, $data){
+//
+//        $filePath = $this->directoryList->getPath(\Magento\Framework\App\Filesystem\DirectoryList::VAR_DIR)
+//            . "/" . $filename;
+//
+//        $this->csvProcessor
+//            ->setDelimiter(',')
+//            ->setEnclosure('"')
+//            ->saveData(
+//                $filePath,
+//                $data
+//            );
+//
+//        return $this->fileFactory->create(
+//            $filename,
+//            [
+//                'type' => "filename",
+//                'value' => $filename,
+//                'rm' => false,
+//            ],
+//            \Magento\Framework\App\Filesystem\DirectoryList::VAR_DIR,
+//            'text/csv',
+//            null
+//        );
+//    }
 
     protected function getOrderStatus(){
         return ['processing','fraud','pending_payment','payment_review','pending','holded','STATE_OPEN','complete','closed','canceled','paypay_canceled_reversal','pending_paypal','paypal_reversed','all'];
