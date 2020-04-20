@@ -1,17 +1,17 @@
 <?xml version="1.0"?>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
     <system>
-        <tab id="witeck_tab" translate="label" sortOrder="110">
-            <label>WiTeck Extensions</label>
+        <tab id="ws_tab" translate="label" sortOrder="110">
+            <label>Ws Extensions</label>
         </tab>
-        <section id="witeck" translate="label" type="text" sortOrder="8888" showInDefault="1" showInWebsite="0" showInStore="0">
-            <label>CLI Orders Export</label>
-            <tab>witeck_tab</tab>
+        <section id="ws_orderexport" translate="label" type="text" sortOrder="8888" showInDefault="1" showInWebsite="0" showInStore="0">
+            <label>Orders Export</label>
+            <tab>ws_tab</tab>
             <resource>Ws_OrderExport::config</resource>
-            <group id="general" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="0" showInStore="0">
-                <label>User Manual</label>
-                <field id="ws_orderexport_enable" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="0" showInStore="0">
-                    <label>Enable </label>
+            <group id="ws_general" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="0" showInStore="0">
+                <label>To do</label>
+                <field id="ws_enable" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Enable</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                     <comment>Select Yes or NO</comment>
                 </field>
