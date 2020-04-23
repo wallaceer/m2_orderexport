@@ -38,6 +38,10 @@ class Export{
 
     public function execute(){
 
+        if($this->_data->getConfiguredCrontab() !== 1){
+            throw new \Exception('Crontab disabled from admin!');
+        }
+
         /**
          * Boolean var for empty result
          */

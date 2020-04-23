@@ -104,4 +104,10 @@ class Data{
         }
     }
 
+
+    public function getConfiguredCrontab(){
+        return $this->getConfig('ws_orderexport/ws_general/ws_crontab_enable');
+    }
+
+
 }
