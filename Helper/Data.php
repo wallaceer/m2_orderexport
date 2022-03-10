@@ -13,11 +13,9 @@ class Data{
 
 
     public function __construct(
-        \Magento\Sales\Model\ResourceModel\Order\CollectionFactory $orderFactory,
-        \Magento\Sales\Model\Order $orderData
+        \Magento\Sales\Model\ResourceModel\Order\CollectionFactory $orderFactory
     ){
         $this->_orderFactory = $orderFactory;
-        $this->_order = $orderData;
     }
 
     public function getOrdersCollection($status, $start, $end){
