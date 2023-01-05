@@ -21,6 +21,9 @@ In the Magento 2 CLI there is the command
 * the order status used for filtering orders collection
 * `start` and `end` date for filtering orders collection; this two dates are relatives to created_at field     
 
+Example.
+bin/magento order:export l all 2020-01-01 2020-12-31
+
 ## How to generate the csv from contrab 
 By default the module set a cron job to runnig every day at 00:01 hours in detailed mode
 The job get all orders created on the current day
